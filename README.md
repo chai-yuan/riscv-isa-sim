@@ -103,7 +103,7 @@ install path.
     $ apt-get install device-tree-compiler libboost-regex-dev libboost-system-dev
     $ mkdir build
     $ cd build
-    $ ../configure --prefix=$RISCV
+    $ ../configure --with-boost-libdir=/nix/store/5fanw8l79i999qvv2gkqgxhpy175h7bv-boost-1.81.0/lib/
     $ make
     $ [sudo] make install
 
