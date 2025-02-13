@@ -21,6 +21,15 @@ class mmu_t;
 class remote_bitbang_t;
 class socketif_t;
 
+enum mode { USER = 0x0, SUPERVISOR = 0x1, MACHINE = 0x3 };
+
+struct DifftestRiscvCore {
+    uint64_t  regs[32];
+    uint64_t  pc;
+    uint64_t  csrs[4096];
+    enum mode mode;
+};
+
 // Type for holding a pair of device factory and device specialization arguments.
 using device_factory_sargs_t = std::pair<const device_factory_t*, std::vector<std::string>>;
 
