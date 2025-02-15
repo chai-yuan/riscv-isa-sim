@@ -65,24 +65,34 @@ void difftestInit(const std::string &soFileName, const std::string &binFileName)
     binFile.close();
 }
 
+#define CHECK_REG(reg)                                                                                                 \
+    {                                                                                                                  \
+        if (difftestCore->reg != simCore.reg) {                                                                        \
+            printf("ERROR: %s mismatch\n", #reg);                                                                      \
+            printf("  difftest_core->%s = 0x%lx\n", #reg, difftestCore->reg);                                          \
+            printf("  cpu->%s = 0x%lx\n", #reg, simCore.reg);                                                          \
+            diff = 1;                                                                                                  \
+        }                                                                                                              \
+    }
+
 void checkDiff() {
     int diff = 0;
-    // 比较 regs 数组
+
     for (int i = 0; i < 32; i++) {
-        if (difftestCore->regs[i] != simCore.regs[i]) {
-            printf("ERROR: regs[%d] mismatch\n", i);
-            printf("  difftest_core->regs[%d] = 0x%lx\n", i, difftestCore->regs[i]);
-            printf("  cpu->regs[%d] = 0x%lx\n", i, simCore.regs[i]);
-            diff = 1;
-        }
+        CHECK_REG(regs[i]);
     }
-    // 比较 pc
-    if (difftestCore->pc != simCore.pc) {
-        printf("ERROR: pc mismatch\n");
-        printf("  difftest_core->pc = 0x%lx\n", difftestCore->pc);
-        printf("  cpu->pc = 0x%lx\n", simCore.pc);
-        diff = 1;
-    }
+    CHECK_REG(pc);
+    CHECK_REG(mode);
+    CHECK_REG(csrs[MSTATUS]);
+    CHECK_REG(csrs[MEDELEG]);
+    CHECK_REG(csrs[MIDELEG]);
+    CHECK_REG(csrs[MIE]);
+
+    CHECK_REG(csrs[MEPC]);
+    CHECK_REG(csrs[MCAUSE]);
+    CHECK_REG(csrs[MTVAL]);
+    CHECK_REG(csrs[MIP]);
+
     if (diff == 1) {
         printf("pc : %lx\n", difftestCore->pc);
         printf("mode : %x\n", difftestCore->mode);
@@ -126,8 +136,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted, std::vector<std::pair<reg_t, abstrac
 
     // difftest
     printf("sim_t::sim_t enable difftest\n");
-    difftestInit("/home/charain/Project/RISCV-Emulator/libcremu.so",
-                 "/home/charain/Project/os24fall-stu-main/src/spike/fw_jump.bin");
+    difftestInit("/home/charain/Project/RISCV-Emulator/libcremu.so", "/home/charain/Project/fw_payload.bin");
 
     sout_.rdbuf(std::cerr.rdbuf()); // debug output goes to stderr by default
 
@@ -341,7 +350,7 @@ void sim_t::step(size_t n) {
         current_step += steps;
         if (current_step == INTERLEAVE) {
             current_step = 0;
-            procs[current_proc]->get_mmu()->yield_load_reservation();
+       //     procs[current_proc]->get_mmu()->yield_load_reservation();
             if (++current_proc == procs.size()) {
                 current_proc    = 0;
                 reg_t rtc_ticks = INTERLEAVE / INSNS_PER_RTC_TICK;
@@ -352,10 +361,28 @@ void sim_t::step(size_t n) {
 
         // difftest
         auto cpuState = procs[current_proc]->get_state();
+        auto mmu      = procs[current_proc]->get_mmu();
         simCore.pc    = cpuState->pc;
         for (int i = 0; i < 32; i++)
             simCore.regs[i] = cpuState->XPR[i];
+        simCore.mode          = (enum mode)cpuState->prv;
+        simCore.csrs[MSTATUS] = cpuState->mstatus->read();
+        simCore.csrs[MEDELEG] = cpuState->medeleg->read();
+        simCore.csrs[MIDELEG] = cpuState->mideleg->read();
+        simCore.csrs[MIE]     = cpuState->mie->read();
+
+        simCore.csrs[MEPC]   = cpuState->mepc->read();
+        simCore.csrs[MCAUSE] = cpuState->mcause->read();
+        simCore.csrs[MTVAL]  = cpuState->mtval->read();
+
+        // 同步 csr
+        difftestCore->csrs[0x7a0] = cpuState->tselect->read();
+        difftestCore->csrs[0x7a4] = 0x100807c;
         difftest_step();
+        simCore.csrs[MIP]       = cpuState->mip->read();
+        difftestCore->csrs[MIP] = cpuState->mip->read();
+        cpuState->satp->write(difftestCore->csrs[SATP]);
+
         checkDiff();
     }
 }
@@ -439,18 +466,6 @@ void sim_t::set_rom() {
     }
 
     std::vector<char> rom((char *)reset_vec, (char *)reset_vec + sizeof(reset_vec));
-    // 导出dtb
-    /*printf("// DTB binary data (%zu bytes)\n", dtb.size());*/
-    /*printf("const unsigned char dtb[] = {\n");*/
-    /*size_t line_count = 0;*/
-    /*for (auto it = dtb.begin(); it != dtb.end(); ++it) {*/
-    /*    printf("0x%02x", static_cast<unsigned char>(*it));*/
-    /*    if (std::next(it) != dtb.end())*/
-    /*        printf(", ");*/
-    /*    if (++line_count % 16 == 0)*/
-    /*        printf("\n");*/
-    /*}*/
-    /*printf("\n};\n\n");*/
 
     rom.insert(rom.end(), dtb.begin(), dtb.end());
     const int align = 0x1000;

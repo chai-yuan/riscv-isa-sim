@@ -370,12 +370,12 @@ public:
   {
     blocksz = size;
   }
+  reg_t load_reservation_address;
 
 private:
   simif_t* sim;
   processor_t* proc;
   memtracer_list_t tracer;
-  reg_t load_reservation_address;
   uint16_t fetch_temp;
   reg_t blocksz;
 
