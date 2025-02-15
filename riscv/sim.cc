@@ -65,24 +65,34 @@ void difftestInit(const std::string &soFileName, const std::string &binFileName)
     binFile.close();
 }
 
+#define CHECK_REG(reg)                                                                                                 \
+    {                                                                                                                  \
+        if (difftestCore->reg != simCore.reg) {                                                                        \
+            printf("ERROR: %s mismatch\n", #reg);                                                                      \
+            printf("  difftest_core->%s = 0x%lx\n", #reg, difftestCore->reg);                                          \
+            printf("  cpu->%s = 0x%lx\n", #reg, simCore.reg);                                                          \
+            diff = 1;                                                                                                  \
+        }                                                                                                              \
+    }
+
 void checkDiff() {
     int diff = 0;
-    // 比较 regs 数组
+
     for (int i = 0; i < 32; i++) {
-        if (difftestCore->regs[i] != simCore.regs[i]) {
-            printf("ERROR: regs[%d] mismatch\n", i);
-            printf("  difftest_core->regs[%d] = 0x%lx\n", i, difftestCore->regs[i]);
-            printf("  cpu->regs[%d] = 0x%lx\n", i, simCore.regs[i]);
-            diff = 1;
-        }
+        CHECK_REG(regs[i]);
     }
-    // 比较 pc
-    if (difftestCore->pc != simCore.pc) {
-        printf("ERROR: pc mismatch\n");
-        printf("  difftest_core->pc = 0x%lx\n", difftestCore->pc);
-        printf("  cpu->pc = 0x%lx\n", simCore.pc);
-        diff = 1;
-    }
+    CHECK_REG(pc);
+    CHECK_REG(mode);
+    CHECK_REG(csrs[MSTATUS]);
+    CHECK_REG(csrs[MEDELEG]);
+    CHECK_REG(csrs[MIDELEG]);
+    CHECK_REG(csrs[MIE]);
+
+    CHECK_REG(csrs[MEPC]);
+    CHECK_REG(csrs[MCAUSE]);
+    CHECK_REG(csrs[MTVAL]);
+    CHECK_REG(csrs[MIP]);
+
     if (diff == 1) {
         printf("pc : %lx\n", difftestCore->pc);
         printf("mode : %x\n", difftestCore->mode);
@@ -355,6 +365,22 @@ void sim_t::step(size_t n) {
         simCore.pc    = cpuState->pc;
         for (int i = 0; i < 32; i++)
             simCore.regs[i] = cpuState->XPR[i];
+        simCore.mode          = (enum mode)cpuState->prv;
+        simCore.csrs[MSTATUS] = cpuState->mstatus->read();
+        simCore.csrs[MEDELEG] = cpuState->medeleg->read();
+        simCore.csrs[MIDELEG] = cpuState->mideleg->read();
+        simCore.csrs[MIE]     = cpuState->mie->read();
+
+        simCore.csrs[MEPC]   = cpuState->mepc->read();
+        simCore.csrs[MCAUSE] = cpuState->mcause->read();
+        simCore.csrs[MTVAL]  = cpuState->mtval->read();
+        simCore.csrs[MIP]    = cpuState->mip->read();
+
+        // 同步调试 csr
+        difftestCore->csrs[0x7a0] = cpuState->tselect->read();
+        difftestCore->csrs[0x7a4] = 0x100807c;
+
+        difftestCore->csrs[MIP] = simCore.csrs[MIP]; // 同步中断
         difftest_step();
         checkDiff();
     }

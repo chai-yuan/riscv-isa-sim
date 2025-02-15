@@ -23,6 +23,50 @@ class socketif_t;
 
 enum mode { USER = 0x0, SUPERVISOR = 0x1, MACHINE = 0x3 };
 
+enum csraddr {
+    // Unprivileged Counter/Timers
+    CYCLE   = 0xc00,
+    TIME    = 0xc01,
+    // Supervisor Trap Setup
+    SSTATUS    = 0x100,
+    SIE        = 0x104,
+    STVEC      = 0x105,
+    SCOUNTEREN = 0x106,
+    // Supervisor Trap Handling
+    SSCRATCH = 0x140,
+    SEPC     = 0x141,
+    SCAUSE   = 0x142,
+    STVAL    = 0x143,
+    SIP      = 0x144,
+    // Supervisor Protection and Translation
+    SATP = 0x180,
+    // Machine Information Registers
+    MVENDORID  = 0xf11,
+    MARCHID    = 0xf12,
+    MIMPID     = 0xf13,
+    MHARTID    = 0xf14,
+    MCONFIGPTR = 0xf15,
+    // Machine Trap Setup
+    MSTATUS    = 0x300,
+    MISA       = 0x301,
+    MEDELEG    = 0x302,
+    MIDELEG    = 0x303,
+    MIE        = 0x304,
+    MTVEC      = 0x305,
+    MCOUNTEREN = 0x306,
+    // Machine Trap Handling
+    MSCRATCH = 0x340,
+    MEPC     = 0x341,
+    MCAUSE   = 0x342,
+    MTVAL    = 0x343,
+    MIP      = 0x344,
+    // Machine Counter/Timers
+    MCYCLE   = 0xb00,
+    MINSTRET = 0xb02,
+    TSELECT  = 0x7a0,
+    TDATA1   = 0x7a1
+};
+
 struct DifftestRiscvCore {
     uint64_t  regs[32];
     uint64_t  pc;
