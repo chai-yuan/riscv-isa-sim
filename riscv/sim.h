@@ -67,12 +67,20 @@ enum csraddr {
     TDATA1   = 0x7a1
 };
 
+/*struct DifftestRiscvCore {*/
+/*    uint64_t  regs[32];*/
+/*    uint64_t  pc;*/
+/*    uint64_t  csrs[4096];*/
+/*    enum mode mode;*/
+/*};*/
+
 struct DifftestRiscvCore {
-    uint64_t  regs[32];
-    uint64_t  pc;
-    uint64_t  csrs[4096];
+    uint32_t  regs[32];
+    uint32_t  pc;
+    uint32_t  csrs[4096];
     enum mode mode;
 };
+
 
 // Type for holding a pair of device factory and device specialization arguments.
 using device_factory_sargs_t = std::pair<const device_factory_t*, std::vector<std::string>>;

@@ -28,6 +28,7 @@ DifftestRiscvCore *difftestCore, simCore;
 
 struct DifftestRiscvCore *(*difftest_init)(const uint8_t *data, uint64_t data_size) = NULL;
 void (*difftest_step)(void)                                                         = NULL;
+void (*difftest_interrupt)(const uint64_t)                                          = NULL;
 
 void difftestInit(const std::string &soFileName, const std::string &binFileName) {
     std::ifstream binFile(binFileName, std::ios::binary | std::ios::ate);
@@ -53,8 +54,9 @@ void difftestInit(const std::string &soFileName, const std::string &binFileName)
 
     difftest_init = reinterpret_cast<DifftestRiscvCore *(*)(const uint8_t *, uint64_t)>(dlsym(handle, "difftest_init"));
     difftest_step = reinterpret_cast<void (*)()>(dlsym(handle, "difftest_step"));
+    difftest_interrupt = reinterpret_cast<void (*)(uint64_t)>(dlsym(handle, "difftest_interrupt"));
 
-    if (!difftest_init || !difftest_step) {
+    if (!difftest_init || !difftest_step || !difftest_interrupt) {
         std::cerr << "Error finding symbol: " << dlerror() << std::endl;
         dlclose(handle);
         exit(1);
@@ -65,12 +67,22 @@ void difftestInit(const std::string &soFileName, const std::string &binFileName)
     binFile.close();
 }
 
+/*#define CHECK_REG(reg)                                                                                                 \*/
+/*    {                                                                                                                  \*/
+/*        if (difftestCore->reg != simCore.reg) {                                                                        \*/
+/*            printf("ERROR: %s mismatch\n", #reg);                                                                      \*/
+/*            printf("  difftest_core->%s = 0x%lx\n", #reg, difftestCore->reg);                                          \*/
+/*            printf("  cpu->%s = 0x%lx\n", #reg, simCore.reg);                                                          \*/
+/*            diff = 1;                                                                                                  \*/
+/*        }                                                                                                              \*/
+/*    }*/
+
 #define CHECK_REG(reg)                                                                                                 \
     {                                                                                                                  \
         if (difftestCore->reg != simCore.reg) {                                                                        \
             printf("ERROR: %s mismatch\n", #reg);                                                                      \
-            printf("  difftest_core->%s = 0x%lx\n", #reg, difftestCore->reg);                                          \
-            printf("  cpu->%s = 0x%lx\n", #reg, simCore.reg);                                                          \
+            printf("  difftest_core->%s = 0x%x\n", #reg, difftestCore->reg);                                          \
+            printf("  cpu->%s = 0x%x\n", #reg, simCore.reg);                                                          \
             diff = 1;                                                                                                  \
         }                                                                                                              \
     }
@@ -93,17 +105,36 @@ void checkDiff() {
     CHECK_REG(csrs[MTVAL]);
     CHECK_REG(csrs[MIP]);
 
+    CHECK_REG(csrs[SEPC]);
+    CHECK_REG(csrs[SCAUSE]);
+    CHECK_REG(csrs[STVAL]);
+
+    /*if (diff == 1) {*/
+    /*    printf("pc : %lx\n", difftestCore->pc);*/
+    /*    printf("mode : %x\n", difftestCore->mode);*/
+    /*    for (int i = 0; i < 32; i += 2) {*/
+    /*        printf("reg %d : %lx reg %d : %lx\n", i, difftestCore->regs[i], i + 1, difftestCore->regs[i + 1]);*/
+    /*    }*/
+    /**/
+    /*    printf("pc : %lx\n", simCore.pc);*/
+    /*    printf("mode : %x\n", simCore.mode);*/
+    /*    for (int i = 0; i < 32; i += 2) {*/
+    /*        printf("reg %d : %lx reg %d : %lx\n", i, simCore.regs[i], i + 1, simCore.regs[i + 1]);*/
+    /*    }*/
+    /*    exit(1);*/
+    /*}*/
+
     if (diff == 1) {
-        printf("pc : %lx\n", difftestCore->pc);
+        printf("pc : %x\n", difftestCore->pc);
         printf("mode : %x\n", difftestCore->mode);
         for (int i = 0; i < 32; i += 2) {
-            printf("reg %d : %lx reg %d : %lx\n", i, difftestCore->regs[i], i + 1, difftestCore->regs[i + 1]);
+            printf("reg %d : %x reg %d : %x\n", i, difftestCore->regs[i], i + 1, difftestCore->regs[i + 1]);
         }
 
-        printf("pc : %lx\n", simCore.pc);
+        printf("pc : %x\n", simCore.pc);
         printf("mode : %x\n", simCore.mode);
         for (int i = 0; i < 32; i += 2) {
-            printf("reg %d : %lx reg %d : %lx\n", i, simCore.regs[i], i + 1, simCore.regs[i + 1]);
+            printf("reg %d : %x reg %d : %x\n", i, simCore.regs[i], i + 1, simCore.regs[i + 1]);
         }
         exit(1);
     }
@@ -136,7 +167,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted, std::vector<std::pair<reg_t, abstrac
 
     // difftest
     printf("sim_t::sim_t enable difftest\n");
-    difftestInit("/home/charain/Project/RISCV-Emulator/libcremu.so", "/home/charain/Project/fw_payload.bin");
+    difftestInit("/home/charain/Project/RISCV-Emulator/libcremu.so", "/home/charain/Project/ysyx-workbench/am-kernels/riscv-tests-am/build/rvc-riscv32-cremu.bin");
 
     sout_.rdbuf(std::cerr.rdbuf()); // debug output goes to stderr by default
 
@@ -350,7 +381,7 @@ void sim_t::step(size_t n) {
         current_step += steps;
         if (current_step == INTERLEAVE) {
             current_step = 0;
-       //     procs[current_proc]->get_mmu()->yield_load_reservation();
+            //     procs[current_proc]->get_mmu()->yield_load_reservation();
             if (++current_proc == procs.size()) {
                 current_proc    = 0;
                 reg_t rtc_ticks = INTERLEAVE / INSNS_PER_RTC_TICK;
@@ -375,12 +406,19 @@ void sim_t::step(size_t n) {
         simCore.csrs[MCAUSE] = cpuState->mcause->read();
         simCore.csrs[MTVAL]  = cpuState->mtval->read();
 
+        simCore.csrs[SEPC]   = cpuState->sepc->read();
+        simCore.csrs[SCAUSE] = cpuState->scause->read();
+        simCore.csrs[STVAL]  = cpuState->stval->read();
+
         // 同步 csr
         difftestCore->csrs[0x7a0] = cpuState->tselect->read();
         difftestCore->csrs[0x7a4] = 0x100807c;
+
         difftest_step();
+
         simCore.csrs[MIP]       = cpuState->mip->read();
-        difftestCore->csrs[MIP] = cpuState->mip->read();
+        difftest_interrupt(cpuState->mip->read());
+
         cpuState->satp->write(difftestCore->csrs[SATP]);
 
         checkDiff();
