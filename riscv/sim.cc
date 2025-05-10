@@ -67,25 +67,25 @@ void difftestInit(const std::string &soFileName, const std::string &binFileName)
     binFile.close();
 }
 
+#define CHECK_REG(reg) \
+    { \
+        if (difftestCore->reg != simCore.reg) { \
+            printf("ERROR: %s mismatch\n", #reg); \
+            printf("  difftest_core->%s = 0x%lx\n", #reg, difftestCore->reg); \
+            printf("  cpu->%s = 0x%lx\n", #reg, simCore.reg); \
+            diff = 1; \
+        } \
+    }
+
 /*#define CHECK_REG(reg)                                                                                                 \*/
 /*    {                                                                                                                  \*/
 /*        if (difftestCore->reg != simCore.reg) {                                                                        \*/
 /*            printf("ERROR: %s mismatch\n", #reg);                                                                      \*/
-/*            printf("  difftest_core->%s = 0x%lx\n", #reg, difftestCore->reg);                                          \*/
-/*            printf("  cpu->%s = 0x%lx\n", #reg, simCore.reg);                                                          \*/
+/*            printf("  difftest_core->%s = 0x%x\n", #reg, difftestCore->reg);                                           \*/
+/*            printf("  cpu->%s = 0x%x\n", #reg, simCore.reg);                                                           \*/
 /*            diff = 1;                                                                                                  \*/
 /*        }                                                                                                              \*/
 /*    }*/
-
-#define CHECK_REG(reg)                                                                                                 \
-    {                                                                                                                  \
-        if (difftestCore->reg != simCore.reg) {                                                                        \
-            printf("ERROR: %s mismatch\n", #reg);                                                                      \
-            printf("  difftest_core->%s = 0x%x\n", #reg, difftestCore->reg);                                          \
-            printf("  cpu->%s = 0x%x\n", #reg, simCore.reg);                                                          \
-            diff = 1;                                                                                                  \
-        }                                                                                                              \
-    }
 
 void checkDiff() {
     int diff = 0;
@@ -109,35 +109,35 @@ void checkDiff() {
     CHECK_REG(csrs[SCAUSE]);
     CHECK_REG(csrs[STVAL]);
 
-    /*if (diff == 1) {*/
-    /*    printf("pc : %lx\n", difftestCore->pc);*/
-    /*    printf("mode : %x\n", difftestCore->mode);*/
-    /*    for (int i = 0; i < 32; i += 2) {*/
-    /*        printf("reg %d : %lx reg %d : %lx\n", i, difftestCore->regs[i], i + 1, difftestCore->regs[i + 1]);*/
-    /*    }*/
-    /**/
-    /*    printf("pc : %lx\n", simCore.pc);*/
-    /*    printf("mode : %x\n", simCore.mode);*/
-    /*    for (int i = 0; i < 32; i += 2) {*/
-    /*        printf("reg %d : %lx reg %d : %lx\n", i, simCore.regs[i], i + 1, simCore.regs[i + 1]);*/
-    /*    }*/
-    /*    exit(1);*/
-    /*}*/
-
     if (diff == 1) {
-        printf("pc : %x\n", difftestCore->pc);
+        printf("pc : %lx\n", difftestCore->pc);
         printf("mode : %x\n", difftestCore->mode);
         for (int i = 0; i < 32; i += 2) {
-            printf("reg %d : %x reg %d : %x\n", i, difftestCore->regs[i], i + 1, difftestCore->regs[i + 1]);
+            printf("reg %d : %lx reg %d : %lx\n", i, difftestCore->regs[i], i + 1, difftestCore->regs[i + 1]);
         }
 
-        printf("pc : %x\n", simCore.pc);
+        printf("pc : %lx\n", simCore.pc);
         printf("mode : %x\n", simCore.mode);
         for (int i = 0; i < 32; i += 2) {
-            printf("reg %d : %x reg %d : %x\n", i, simCore.regs[i], i + 1, simCore.regs[i + 1]);
+            printf("reg %d : %lx reg %d : %lx\n", i, simCore.regs[i], i + 1, simCore.regs[i + 1]);
         }
         exit(1);
     }
+
+    /*if (diff == 1) {*/
+    /*    printf("pc : %x\n", difftestCore->pc);*/
+    /*    printf("mode : %x\n", difftestCore->mode);*/
+    /*    for (int i = 0; i < 32; i += 2) {*/
+    /*        printf("reg %d : %x reg %d : %x\n", i, difftestCore->regs[i], i + 1, difftestCore->regs[i + 1]);*/
+    /*    }*/
+    /**/
+    /*    printf("pc : %x\n", simCore.pc);*/
+    /*    printf("mode : %x\n", simCore.mode);*/
+    /*    for (int i = 0; i < 32; i += 2) {*/
+    /*        printf("reg %d : %x reg %d : %x\n", i, simCore.regs[i], i + 1, simCore.regs[i + 1]);*/
+    /*    }*/
+    /*    exit(1);*/
+    /*}*/
 }
 // ------
 
@@ -167,7 +167,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted, std::vector<std::pair<reg_t, abstrac
 
     // difftest
     printf("sim_t::sim_t enable difftest\n");
-    difftestInit("/home/charain/Project/RISCV-Emulator/libcremu.so", "/home/charain/Project/ysyx-workbench/am-kernels/riscv-tests-am/build/rvc-riscv32-cremu.bin");
+    difftestInit("../../libcremu.so", "test.bin");
 
     sout_.rdbuf(std::cerr.rdbuf()); // debug output goes to stderr by default
 
@@ -416,10 +416,10 @@ void sim_t::step(size_t n) {
 
         difftest_step();
 
-        simCore.csrs[MIP]       = cpuState->mip->read();
-        difftest_interrupt(cpuState->mip->read());
+        // simCore.csrs[MIP] = cpuState->mip->read();
+        // difftest_interrupt(cpuState->mip->read());
 
-        cpuState->satp->write(difftestCore->csrs[SATP]);
+        //   cpuState->satp->write(difftestCore->csrs[SATP]);
 
         checkDiff();
     }
