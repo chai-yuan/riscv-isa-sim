@@ -66,6 +66,7 @@ static void help(int exit_code = 1)
   fprintf(stderr, "  --disable-dtb         Don't write the device tree blob into memory\n");
   fprintf(stderr, "  --kernel=<path>       Load kernel flat image into memory\n");
   fprintf(stderr, "  --initrd=<path>       Load kernel initrd into memory\n");
+  fprintf(stderr, "  --flash=<path>        Load kernel initrd into flash(0x3000_0000)\n");
   fprintf(stderr, "  --bootargs=<args>     Provide custom bootargs for kernel [default: %s]\n",
           DEFAULT_KERNEL_BOOTARGS);
   fprintf(stderr, "  --real-time-clint     Increment clint time at real-time rate\n");
@@ -333,6 +334,7 @@ int main(int argc, char** argv)
   const char *log_path = nullptr;
   std::vector<std::function<extension_t*()>> extensions;
   const char* initrd = NULL;
+  const char* flash = NULL;
   const char* dtb_file = NULL;
   uint16_t rbb_port = 0;
   bool use_rbb = false;
@@ -399,6 +401,7 @@ int main(int argc, char** argv)
   parser.option(0, "dtb", 1, [&](const char *s){dtb_file = s;});
   parser.option(0, "kernel", 1, [&](const char* s){kernel = s;});
   parser.option(0, "initrd", 1, [&](const char* s){initrd = s;});
+  parser.option(0, "flash", 1, [&](const char* s){flash = s;});
   parser.option(0, "bootargs", 1, [&](const char* s){cfg.bootargs = s;});
   parser.option(0, "real-time-clint", 0, [&](const char UNUSED *s){cfg.real_time_clint = true;});
   parser.option(0, "triggers", 1, [&](const char *s){cfg.trigger_count = atoul_safe(s);});
@@ -459,6 +462,14 @@ int main(int argc, char** argv)
 
   std::vector<std::pair<reg_t, abstract_mem_t*>> mems =
       make_mems(cfg.mem_layout);
+
+  if (flash && check_file_exists(flash)) {
+    size_t flash_size = get_file_size(flash);
+    mems.push_back(std::make_pair(0x30000000, new mem_t(0x1000000)));
+    auto m = mems.back();
+
+    read_file_bytes(flash, 0, m.second, 0, flash_size);
+  }
 
   if (kernel && check_file_exists(kernel)) {
     const char *isa = cfg.isa;
