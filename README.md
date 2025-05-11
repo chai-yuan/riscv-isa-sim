@@ -329,3 +329,13 @@ $4 = 0
 (gdb) print text
 ...
 ```
+
+Build Steps for cup-docker
+---------------
+
+    $ cd home/os/riscv-isa-sim
+    $ mkdir build
+    $ cd /home/os/riscv-isa-sim/build
+    $ ../configure
+    $ make -j$(nproc)
+    $ make install
