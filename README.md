@@ -333,6 +333,8 @@ $4 = 0
 Build Steps for cup-docker
 ---------------
 
+Only for cup's docker environment.
+
     $ cd home/os/riscv-isa-sim
     $ mkdir build
     $ cd /home/os/riscv-isa-sim/build
