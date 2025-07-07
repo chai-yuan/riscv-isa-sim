@@ -165,6 +165,19 @@ class ns16550_t : public abstract_device_t {
   static const int MAX_BACKOFF = 16;
 };
 
+class flash_ctr_t : public abstract_device_t {
+ public:
+  flash_ctr_t(mem_t *initrd);
+  bool load(reg_t addr, size_t len, uint8_t* bytes) override;
+  bool store(reg_t addr, size_t len, const uint8_t* bytes) override;
+  size_t size() { return FLASH_CTR_SIZE; }
+ private:
+  mem_t *initrd;
+  int data_idx;
+  unsigned int flashcmd;
+  unsigned int flashaddr;
+};
+
 template<typename T>
 void write_little_endian_reg(T* word, reg_t addr, size_t len, const uint8_t* bytes)
 {

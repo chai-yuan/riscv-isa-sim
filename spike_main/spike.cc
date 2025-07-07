@@ -66,7 +66,7 @@ static void help(int exit_code = 1)
   fprintf(stderr, "  --disable-dtb         Don't write the device tree blob into memory\n");
   fprintf(stderr, "  --kernel=<path>       Load kernel flat image into memory\n");
   fprintf(stderr, "  --initrd=<path>       Load kernel initrd into memory\n");
-  fprintf(stderr, "  --flash=<path>        Load kernel initrd into flash(0x3000_0000)\n");
+  fprintf(stderr, "  --flash=<path>        Load kernel initrd into flash_ctr(0x3000_0000)\n");
   fprintf(stderr, "  --bootargs=<args>     Provide custom bootargs for kernel [default: %s]\n",
           DEFAULT_KERNEL_BOOTARGS);
   fprintf(stderr, "  --real-time-clint     Increment clint time at real-time rate\n");
@@ -463,13 +463,6 @@ int main(int argc, char** argv)
   std::vector<std::pair<reg_t, abstract_mem_t*>> mems =
       make_mems(cfg.mem_layout);
 
-  if (flash && check_file_exists(flash)) {
-    size_t flash_size = get_file_size(flash);
-    mems.push_back(std::make_pair(0x30000000, new mem_t(0x1000000)));
-    auto m = mems.back();
-
-    read_file_bytes(flash, 0, m.second, 0, flash_size);
-  }
 
   if (kernel && check_file_exists(kernel)) {
     const char *isa = cfg.isa;
@@ -529,6 +522,13 @@ int main(int argc, char** argv)
   if (use_rbb) {
     remote_bitbang.reset(new remote_bitbang_t(rbb_port, &(*jtag_dtm)));
     s.set_remote_bitbang(&(*remote_bitbang));
+  }
+
+  if (flash && check_file_exists(flash)) {
+    size_t flash_size = get_file_size(flash);
+    auto flashinitrd = new mem_t(FLASH_DATA_SIZE);
+    read_file_bytes(flash, 0, flashinitrd, 0, flash_size);
+    s.add_device(FLASH_CTR_BASE,std::shared_ptr<flash_ctr_t>(new flash_ctr_t(flashinitrd)));
   }
 
   if (dump_dts) {

@@ -17,6 +17,9 @@
 #define NS16550_REG_SHIFT  0
 #define NS16550_REG_IO_WIDTH 1
 #define NS16550_INTERRUPT_ID 1
+#define FLASH_CTR_BASE       0x30000000
+#define FLASH_CTR_SIZE       0x100
+#define FLASH_DATA_SIZE      0x1000000
 #define EXT_IO_BASE        0x40000000
 #define DRAM_BASE          0x80000000
 
